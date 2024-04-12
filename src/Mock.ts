@@ -15,7 +15,7 @@ const DEFAULT_CONFIG: GlobalConfig = {
 
 let GLOBAL_CONFIG = DEFAULT_CONFIG;
 
-export const JestMockExtended = {
+export const BunMockExtended = {
     DEFAULT_CONFIG,
     configure: (config: GlobalConfig) => {
         // Shallow merge so they can override anything they want.
@@ -26,23 +26,19 @@ export const JestMockExtended = {
     },
 };
 
-export interface CalledWithMock<T, Y extends any[]> extends jest.Mock<T, Y> {
-    calledWith: (...args: Y | MatchersOrLiterals<Y>) => jest.Mock<T, Y>;
+export interface CalledWithMock<T, Y extends any[]> {
+    calledWith: (...args: Y | MatchersOrLiterals<Y>) => any;
 }
 
 export type _MockProxy<T> = {
-    [K in keyof T]: T[K] extends (...args: infer A) => infer B
-                    ? T[K] & CalledWithMock<B, A>
-                    : T[K];
+    [K in keyof T]: T[K] extends (...args: infer A) => infer B ? T[K] & CalledWithMock<B, A> : T[K];
 };
 
 export type MockProxy<T> = _MockProxy<T> & T;
 
 export type _DeepMockProxy<T> = {
     // This supports deep mocks in the else branch
-    [K in keyof T]: T[K] extends (...args: infer A) => infer B
-                    ? T[K] & CalledWithMock<B, A>
-                    : T[K] & _DeepMockProxy<T[K]>;
+    [K in keyof T]: T[K] extends (...args: infer A) => infer B ? T[K] & CalledWithMock<B, A> : T[K] & _DeepMockProxy<T[K]>;
 };
 
 // we intersect with T here instead of on the mapped type above to
@@ -53,9 +49,7 @@ export type DeepMockProxy<T> = _DeepMockProxy<T> & T;
 
 export type _DeepMockProxyWithFuncPropSupport<T> = {
     // This supports deep mocks in the else branch
-    [K in keyof T]: T[K] extends (...args: infer A) => infer B
-                    ? CalledWithMock<B, A> & DeepMockProxy<T[K]>
-                    : DeepMockProxy<T[K]>;
+    [K in keyof T]: T[K] extends (...args: infer A) => infer B ? CalledWithMock<B, A> & DeepMockProxy<T[K]> : DeepMockProxy<T[K]>;
 };
 
 export type DeepMockProxyWithFuncPropSupport<T> = _DeepMockProxyWithFuncPropSupport<T> & T;
@@ -80,7 +74,6 @@ export const mockClear = (mock: MockProxy<any>) => {
         }
     }
 
-    // This is a catch for if they pass in a jest.fn()
     if (!mock._isMockObject) {
         return mock.mockClear();
     }
@@ -100,9 +93,6 @@ export const mockReset = (mock: MockProxy<any>) => {
         }
     }
 
-    // This is a catch for if they pass in a jest.fn()
-    // Worst case, we will create a jest.fn() (since this is a proxy)
-    // below in the get and call mockReset on it
     if (!mock._isMockObject) {
         return mock.mockReset();
     }
@@ -153,15 +143,10 @@ const handler = (opts?: MockOpts) => ({
             if (GLOBAL_CONFIG.ignoreProps?.includes(property)) {
                 return undefined;
             }
-            // Jest's internal equality checking does some wierd stuff to check for iterable equality
             if (property === Symbol.iterator) {
                 // @ts-ignore
                 return obj[property];
             }
-            // So this calls check here is totally not ideal - jest internally does a
-            // check to see if this is a spy - which we want to say no to, but blindly returning
-            // an proxy for calls results in the spy check returning true. This is another reason
-            // why deep is opt in.
             if (opts?.deep && property !== 'calls') {
                 // @ts-ignore
                 obj[property] = new Proxy<MockProxy<any>>(fn, handler(opts));
@@ -209,7 +194,7 @@ export const stub = <T extends object>(): T => {
                 // @ts-ignore
                 return obj[property];
             }
-            return jest.fn();
+            return mock();
         },
     });
 };

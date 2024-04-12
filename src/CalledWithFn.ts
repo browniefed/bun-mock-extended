@@ -1,15 +1,16 @@
 import { CalledWithMock } from './Mock';
 import { Matcher, MatchersOrLiterals } from './Matchers';
+import { Mock, mock } from 'bun:test';
 
 interface CalledWithStackItem<T, Y extends any[]> {
     args: MatchersOrLiterals<Y>;
-    calledWithFn: jest.Mock<T, Y>;
+    calledWithFn: any;
 }
 
-interface JestAsymmetricMatcher {
+interface BunAsymmetricMatcher {
     asymmetricMatch(...args: any[]): boolean;
 }
-function isJestAsymmetricMatcher(obj: any): obj is JestAsymmetricMatcher {
+function isBunAsymmetricMatcher(obj: any): obj is BunAsymmetricMatcher {
     return !!obj && typeof obj === 'object' && 'asymmetricMatch' in obj && typeof obj.asymmetricMatch === 'function';
 }
 
@@ -24,7 +25,7 @@ const checkCalledWith = <T, Y extends any[]>(
                 return matcher.asymmetricMatch(actualArgs[i]);
             }
 
-            if (isJestAsymmetricMatcher(matcher)) {
+            if (isBunAsymmetricMatcher(matcher)) {
                 return matcher.asymmetricMatch(actualArgs[i]);
             }
 
@@ -41,13 +42,11 @@ const checkCalledWith = <T, Y extends any[]>(
 export const calledWithFn = <T, Y extends any[]>({
     fallbackMockImplementation,
 }: { fallbackMockImplementation?: (...args: Y) => T } = {}): CalledWithMock<T, Y> => {
-    const fn: jest.Mock<T, Y> = jest.fn(fallbackMockImplementation);
+    const fn = mock(fallbackMockImplementation) as any;
     let calledWithStack: CalledWithStackItem<T, Y>[] = [];
 
-    (fn as CalledWithMock<T, Y>).calledWith = (...args) => {
-        // We create new function to delegate any interactions (mockReturnValue etc.) to for this set of args.
-        // If that set of args is matched, we just call that jest.fn() for the result.
-        const calledWithFn = jest.fn(fallbackMockImplementation);
+    fn.calledWith = (...args: any) => {
+        const calledWithFn = mock(fallbackMockImplementation);
         const mockImplementation = fn.getMockImplementation();
         if (!mockImplementation || mockImplementation === fallbackMockImplementation) {
             // Our original function gets a mock implementation which handles the matching
@@ -59,7 +58,7 @@ export const calledWithFn = <T, Y extends any[]>({
         return calledWithFn;
     };
 
-    return fn as CalledWithMock<T, Y>;
+    return fn as any;
 };
 
 export default calledWithFn;
