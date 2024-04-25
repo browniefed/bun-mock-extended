@@ -1,6 +1,7 @@
 import calledWithFn from './CalledWithFn';
 import { MatchersOrLiterals } from './Matchers';
 import { DeepPartial } from 'ts-essentials';
+import { Mock } from "bun:test";
 
 type ProxiedProperty = string | number | symbol;
 
@@ -26,8 +27,8 @@ export const BunMockExtended = {
     },
 };
 
-export interface CalledWithMock<T, Y extends any[]> {
-    calledWith: (...args: Y | MatchersOrLiterals<Y>) => any;
+export interface CalledWithMock<T, Y extends any[]> extends Mock<(...args: Y) => T> {
+    calledWith: (...args: Y | MatchersOrLiterals<Y>) => Mock<(...args: Y) => T>;
 }
 
 export type _MockProxy<T> = {
